@@ -1,0 +1,46 @@
+name: Actualizar Noticias Automáticamente
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # Se ejecuta automáticamente cada 30 minutos
+  workflow_dispatch: # Permite forzar la ejecucion manual desde la web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Instalar librerías
+        run: pip install feedparser
+
+      - name: Descargar noticias y generar noticias.txt
+        run: |
+          python -c "
+          import feedparser
+
+          url = 'https://api2.rtve.es/rss/temas_noticias.xml'
+          feed = feedparser.parse(url)
+
+          titulares = []
+          for entry in feed.entries[:5]:
+              t = entry.title.replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n').replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U').replace('Ñ','N')
+              titulares.append(t)
+
+          with open('noticias.txt', 'w') as f:
+              f.write(' --- '.join(titulares))
+          "
+
+      - name: Guardar cambios en el repositorio
+        run: |
+          git config --global user.name 'bot-noticias'
+          git config --global user.email 'bot@github.com'
+          git add noticias.txt
+          git commit -m "Actualizar titulares de noticias" || exit 0
+          git push
